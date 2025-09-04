@@ -21,9 +21,7 @@ const HomePage = () => {
         <ListMovie />
       </Section>
 
-      <Section titleSection={"Lịch chiếu phim"}>
-        <div className="bg-yellow-500 h-96"></div>
-      </Section>
+     
       
 
       </div>

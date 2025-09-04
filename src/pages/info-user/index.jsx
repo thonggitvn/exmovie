@@ -1,160 +1,137 @@
 import React, { useEffect } from "react";
-import { yupResolver } from "@hookform/resolvers/yup";
-import { useForm } from "react-hook-form";
-
-import * as yup from "yup";
+import { Form, Input, Button, Select, message } from "antd";
 import { userService } from "../../service/userService";
+import { useDispatch, useSelector } from "react-redux";
+import { setInfoUserAction } from "../../stores/user";
+import { localStorageUtil, keysLocalStorage } from "../../util/localStorage";
 
-const shema = yup.object({
-  taiKhoan: yup
-    .string()
-    .trim()
-    .max(10, "Trường tài khoản chỉ được nhập tối đa 10 ký tự")
-    .required("Trường này không được để trống"),
-  hoTen: yup.string().typeError("Họ tên phải là chuỗi"),
-  soDT: yup
-    .string()
-    .matches(
-      /^(?:\+?84|0)(?:3[2-9]|5[25689]|7(?:0|[6-9])|8[1-9]|9[0-9])\d{7}$/,
-      "Số điện thoại phải là số việt nam"
-    )
-    .required("Trường này không được để trống"),
-});
+const { Option } = Select;
 
 const UserInfoPage = () => {
-  
+  const [form] = Form.useForm();
+  const dispatch = useDispatch();
+  const infoUser = useSelector((state) => state.userSlice.infoUser);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm({
-    resolver: yupResolver(shema),
-    mode: "onChange",
-    defaultValues: {
-      taiKhoan: "",
-      matKhau: "",
-      hoTen: "",
-      email: "",
-      soDT: "",
-      maLoaiNguoiDung: "",
-    },
-  });
-
-  const handleSubmitValueForm = async (dataForm) => {
-    console.log("dataForm: ", dataForm);
-
+  // ✅ Lấy dữ liệu user khi vào trang
+  const fetchUserInfo = async () => {
     try {
-      await userService.upDateInfoUser({ ...dataForm, maNhom: "GP00" });
-
-    } catch (error) {
-      console.log("error: ", error);
-    }
-  };
-
-  const fetchInfoUser = async () => {
-    try {
-      const response = await userService.getInfoUser();
-      console.log("response: ", response);
-      const { email, hoTen, maLoaiNguoiDung, maNhom, matKhau, soDT, taiKhoan } =
-        response.data.content;
-
-      reset({
-        taiKhoan,
-        matKhau,
-        hoTen,
-        email,
-        soDT,
-        maLoaiNguoiDung, 
-      });
-    } catch (error) {
-      console.log("error: ", error);
+      const res = await userService.getInfoUser();
+      const userData = res?.data?.content;
+      if (userData) {
+        form.setFieldsValue(userData);
+        dispatch(setInfoUserAction(userData));
+        localStorageUtil.set(keysLocalStorage.INFO_USER, userData);
+      }
+    } catch (err) {
+      console.error("❌ Get info error:", err);
+      message.error("Không tải được thông tin người dùng");
     }
   };
 
   useEffect(() => {
-    fetchInfoUser();
+    fetchUserInfo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  console.log("errors.taiKhoan?.message: ", errors.taiKhoan?.message);
+  // ✅ Submit cập nhật user
+  const onFinish = async (values) => {
+    try {
+      const payload = {
+        taiKhoan: values.taiKhoan?.trim(),
+        matKhau: values.matKhau,
+        email: values.email?.trim(),
+        soDT: values.soDT?.trim(),
+        hoTen: values.hoTen?.trim(),
+        maNhom: "GP01",
+        maLoaiNguoiDung: values.maLoaiNguoiDung || "KhachHang",
+      };
+
+      console.log("📤 Payload update:", payload);
+
+      await userService.upDateInfoUser(payload);
+
+      // ✅ Gọi lại getInfoUser để lấy bản mới nhất
+      const res = await userService.getInfoUser();
+      const userData = res?.data?.content;
+      dispatch(setInfoUserAction(userData));
+      localStorageUtil.set(keysLocalStorage.INFO_USER, userData);
+
+      message.success("Cập nhật thành công!");
+    } catch (error) {
+      console.error("❌ Update error:", error);
+      message.error(error?.response?.data?.content || "Cập nhật thất bại");
+    }
+  };
 
   return (
-    <div className="flex flex-col items-center justify-center">
-      <h3>Thông tin người dùng</h3>
+    <div className="max-w-xl mx-auto bg-white shadow-md rounded-xl p-6 mt-6">
+      <h1 className="text-2xl font-semibold mb-4 text-center">
+        Cập nhật thông tin
+      </h1>
 
-      <div className="border-2 rounded-2xl shadow-2xl p-8">
-        <form
-          onSubmit={handleSubmit(handleSubmitValueForm)}
-          className="space-y-3"
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={onFinish}
+        initialValues={{ maLoaiNguoiDung: "KhachHang" }}
+      >
+        <Form.Item label="Tài khoản" name="taiKhoan">
+          <Input disabled /> {/* tài khoản không cho sửa */}
+        </Form.Item>
+
+        <Form.Item
+          label="Họ tên"
+          name="hoTen"
+          rules={[{ required: true, message: "Vui lòng nhập họ tên" }]}
         >
-          {/* Tài khoản */}
-          <div>
-            <p className="w-full">Tài khoản</p>
-            <input
-              {...register("taiKhoan")}
-              className="border p-2 rounded-2xl"
-              type="text"
-            />
-            <p className="text-red-500">{errors.taiKhoan?.message}</p>
-          </div>
-          {/* Mật khẩu */}
-          <div>
-            <p className="w-full">Mật khẩu</p>
-            <input
-              {...register("matKhau")}
-              className="border p-2 rounded-2xl"
-              type="text"
-            />
-            <p className="text-red-500">{errors.matKhau?.message}</p>
-          </div>
-          {/* Họ tên */}
-          <div>
-            <p className="w-full">Họ tên</p>
-            <input
-              {...register("hoTen")}
-              className="border p-2 rounded-2xl"
-              type="text"
-            />
-            <p className="text-red-500">{errors.hoTen?.message}</p>
-          </div>
-          {/* Email */}
-          <div>
-            <p className="w-full">Email</p>
-            <input
-              {...register("email")}
-              className="border p-2 rounded-2xl"
-              type="text"
-            />
-            <p className="text-red-500">{errors.email?.message}</p>
-          </div>
-          {/* Số điện thoại */}
-          <div>
-            <p className="w-full">Số điện thoại</p>
-            <input
-              {...register("soDT")}
-              className="border p-2 rounded-2xl"
-              type="text"
-            />
-            <p className="text-red-500">{errors.soDT?.message}</p>
-          </div>
-          {/* Mã người dùng */}
+          <Input />
+        </Form.Item>
 
-          <div>
-            <p className="w-full">Mã loại người dùng</p>
+        <Form.Item
+          label="Email"
+          name="email"
+          rules={[
+            { required: true, message: "Vui lòng nhập email" },
+            { type: "email", message: "Email không hợp lệ" },
+          ]}
+        >
+          <Input />
+        </Form.Item>
 
-            <select {...register("maLoaiNguoiDung")}>
-              <option value="khachHang">Khách hàng</option>
-              <option value="quanTri">Quản trị</option>
-            </select>
-            <p className="text-red-500">{errors.maLoaiNguoiDung?.message}</p>
-          </div>
+        <Form.Item
+          label="Số điện thoại"
+          name="soDT"
+          rules={[
+            { required: true, message: "Vui lòng nhập số điện thoại" },
+            { pattern: /^\d{9,11}$/, message: "Số điện thoại 9–11 chữ số" },
+          ]}
+        >
+          <Input />
+        </Form.Item>
 
-          <button className="mt-3 bg-purple-400 p-2 rounded text-white">
-            Cập nhật
-          </button>
-        </form>
-      </div>
+        <Form.Item
+          label="Mật khẩu"
+          name="matKhau"
+          rules={[{ required: true, message: "Vui lòng nhập mật khẩu" }]}
+        >
+          <Input.Password />
+        </Form.Item>
+
+        <Form.Item
+          label="Loại người dùng"
+          name="maLoaiNguoiDung"
+          rules={[{ required: true, message: "Vui lòng chọn loại người dùng" }]}
+        >
+          <Select>
+            <Option value="KhachHang">Khách hàng</Option>
+            <Option value="QuanTri">Quản trị</Option>
+          </Select>
+        </Form.Item>
+
+        <Button type="primary" htmlType="submit" className="w-full mt-2">
+          Cập nhật
+        </Button>
+      </Form>
     </div>
   );
 };

@@ -1,68 +1,80 @@
-import axios from "axios";
-import React, { useEffect } from "react";
+import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setListMovieAction } from "../../../stores/movie";
-import { axiosCustom } from "../../../service/config";
 import { movieService } from "../../../service/movieService";
-import { Card } from 'antd';
+import { Card, Empty, Spin, Alert } from "antd";
 import { useNavigate } from "react-router-dom";
 
 const { Meta } = Card;
+
 const ListMovie = () => {
   const dispatch = useDispatch();
-
-  const listMovie = useSelector((state) => state.movieSlice.listMovie);
-  console.log("listMovie: store ", listMovie);
-
   const navigate = useNavigate();
+
+  const listMovie = useSelector((state) => state.movieSlice.listMovie) || [];
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
 
   const fetchListMovies = async () => {
     try {
-            
-            const responseListMovies = await movieService.getListMovies();
+      const res = await movieService.getListMovies();
+      console.log("🎬 movies res.data =", res?.data);
 
-            dispatch(setListMovieAction(responseListMovies.data.content));
-    } catch (error) {
-      console.log("error: ", error);
+      const content = res?.data?.content;
+      if (Array.isArray(content)) {
+        dispatch(setListMovieAction(content));
+      } else if (Array.isArray(res?.data)) {
+        dispatch(setListMovieAction(res.data));
+      } else {
+        dispatch(setListMovieAction([]));
+      }
+    } catch (err) {
+      console.error("Get list movies error:", err);
+      setError(err?.response?.data?.content || err?.message || "Lỗi tải phim");
+    } finally {
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
+  React.useEffect(() => {
     fetchListMovies();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleRedirectMovieDetailPage = (movieId)=>{
-        
-        navigate(`/detail/${movieId}`);
-    }
+  const handleRedirectMovieDetailPage = (movieId) => {
+    navigate(`/detail/${movieId}`);
+  };
+
+  if (loading) return <div className="py-10 text-center"><Spin /></div>;
+  if (error) return <div className="p-4"><Alert type="error" message={String(error)} /></div>;
+  if (!listMovie.length) return <div className="p-6"><Empty description="Không có phim nào" /></div>;
 
   return (
-
-    
-    <div className=" grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 px-12 mt-3">
-      {listMovie.map((movie, index) => {
-        return (
-          <Card 
-                onClick={()=> {handleRedirectMovieDetailPage(movie.maPhim);}}
-                hoverable
-                cover={
-                <img
-                    alt="example"
-                    src={movie.hinhAnh}
-                    className="!h-[400px]"
-                />
-                }
-          >
-            <h3 className="font-bold text-center text-xl" >{movie.tenPhim}</h3>
-            <p className="font-semibold text-center text-l ">Ngày khởi chiếu : {movie.ngayKhoiChieu}</p>
-            <h3 className="font-extralight text-center text-l text-red-500" >Đánh giá: {movie.danhGia}</h3>
-            
-          </Card>
-        );
-      })}
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 px-12 mt-3">
+      {listMovie.map((movie) => (
+        <Card
+          key={movie.maPhim}  // ✅ key
+          onClick={() => handleRedirectMovieDetailPage(movie.maPhim)}
+          hoverable
+          cover={
+            <img
+              alt={movie.tenPhim}
+              src={movie.hinhAnh}
+              className="!h-[400px] object-cover"
+            />
+          }
+        >
+          <h3 className="font-bold text-center text-xl">{movie.tenPhim}</h3>
+          <p className="font-semibold text-center">
+            Ngày khởi chiếu: {movie.ngayKhoiChieu}
+          </p>
+          <h3 className="font-extralight text-center text-red-500">
+            Đánh giá: {movie.danhGia}
+          </h3>
+        </Card>
+      ))}
     </div>
   );
 };
 
 export default ListMovie;
-

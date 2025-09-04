@@ -1,42 +1,45 @@
 import React from "react";
 import { useSelector } from "react-redux";
 import { Navigate, useLocation } from "react-router-dom";
-// import { roleUser } from "../routers";
 
 export const roleUser = {
-  ADMIN: "quanTri",
+  ADMIN: "QuanTri",
   USER: "KhachHang",
 };
+
 const AuthCheck = ({ children, isNeedLogin, pagePermission }) => {
   const { infoUser } = useSelector((state) => state.userSlice);
+  const location = useLocation();
 
-  const localtion = useLocation();
+  // ✅ Các route public không bị ép redirect
+  const PUBLIC_PATHS = ["/login", "/register"];
 
-  
-  if (
-    infoUser?.maLoaiNguoiDung === roleUser.ADMIN &&
-    infoUser &&
-    !localtion.pathname.startsWith("/admin")
-  ) {
+  // Chuẩn hóa role để phòng chữ hoa/thường
+  const role = (infoUser?.maLoaiNguoiDung || "").toLowerCase();
+  const isAdmin = role === "quantri";
+  const isUser  = role === "khachhang";
+
+  // 1) Nếu chưa đăng nhập mà route yêu cầu đăng nhập → đẩy về /login
+  if (!infoUser && isNeedLogin) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // 2) Nếu đã đăng nhập, route KHÔNG cần đăng nhập → đá về trang chủ
+  // (giữ nguyên hành vi cũ, tránh vào lại /login, /register khi đã login)
+  if (infoUser && !isNeedLogin && !PUBLIC_PATHS.includes(location.pathname)) {
+    return <Navigate to="/" replace />;
+  }
+
+  // 3) Admin mà đi vào ngoài /admin và KHÔNG thuộc public → đẩy về /admin
+  if (infoUser && isAdmin
+      && !location.pathname.startsWith("/admin")
+      && !PUBLIC_PATHS.includes(location.pathname)) {
     return <Navigate to="/admin" replace />;
   }
 
-  if (
-    infoUser?.maLoaiNguoiDung === roleUser.USER &&
-    infoUser &&
-    pagePermission === roleUser.ADMIN
-  ) {
+  // 4) User thường mà vào trang cần quyền admin → đưa về trang chủ
+  if (infoUser && isUser && pagePermission === roleUser.ADMIN) {
     return <Navigate to="/" replace />;
-  }
-
-  
-  if (infoUser && !isNeedLogin) {
-    return <Navigate to="/" replace />;
-  }
-
-
-  if (!infoUser && isNeedLogin) {
-    return <Navigate to="/login" replace />;
   }
 
   return <div>{children}</div>;

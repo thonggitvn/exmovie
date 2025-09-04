@@ -17,12 +17,9 @@ const routers = [
     element: <HomeTemplate />,
     child: [
       {
+        // ✅ Trang chủ luôn hiển thị, không bị AuthCheck chặn
         path: "",
-        element: (
-          <AuthCheck>
-            <HomePage />
-          </AuthCheck>
-        ),
+        element: <HomePage />,
       },
       {
         path: "/detail/:movieId",
@@ -72,7 +69,7 @@ const routers = [
         path: "",
         element: (
           <AuthCheck isNeedLogin={true} pagePermission={roleUser.ADMIN}>
-            <AdminHomePage />,
+            <AdminHomePage />
           </AuthCheck>
         ),
       },
@@ -80,7 +77,7 @@ const routers = [
         path: "movie",
         element: (
           <AuthCheck isNeedLogin={true} pagePermission={roleUser.ADMIN}>
-            <MovieAdminPage />,
+            <MovieAdminPage />
           </AuthCheck>
         ),
       },
